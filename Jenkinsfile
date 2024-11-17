@@ -5,7 +5,7 @@ pipeline {
         maven 'maven3'
     }
     environment {
-        SCANNER_HOME=tool 'sonar-scanner'
+        SCANNER_HOME= tool 'sonar-scanner'
     }
 
     stages {
@@ -16,32 +16,32 @@ pipeline {
         }
         stage('Compile') {
             steps {
-                script {
-					sh "mvn compile"
-				}
+                script{
+                 sh "mvn compile"   
+                }
             }
         }
         stage('Test') {
             steps {
                 script {
-					sh "mvn test"
-				}
+                    sh "mvn test"
+                }
             }
         }
         stage('File System Scan') {
             steps {
                 script {
-					sh 'trivy fs --format table -o trivy-fs.html .'
-				}
+                    sh "trivy fs --format table -o trivy-fs.html ."
+                }
             }
         }
-        stage('Sonaqube Analysis') {
+        stage('Sonarqube Analysis') {
             steps {
                 script {
-					withSonarQubeEnv('sonarserver') {
-						sh "$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName='BoardGame' -Dsonar.projectKey='BoardGame' -Dsonar.java.libraries=."
-					}
-				}
+                    withSonarQubeEnv(credentialsId: 'sonartoken') {
+                        sh "$SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName='Boardgame' -Dsonar.projectKey='Boardgame' -Dsonar.java.libraries=."
+                    }
+                }
             }
         }
         stage('Quality Gates') {
@@ -54,68 +54,68 @@ pipeline {
         stage('Build') {
             steps {
                 script {
-					sh "mvn package"
-				}
+                    sh "mvn package"
+                }
             }
         }
         stage('Push to Nexus') {
             steps {
                 script {
-					withMaven(globalMavenSettingsConfig: 'maven_settings.xml', jdk: 'java-17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
-						sh "mvn deploy"
-					}
-				}
-            }
-        }
-        stage('Docker build and tag') {
-            steps {
-                script {
-                    withDockerRegistry(credentialsId: 'dockercreds', toolName: 'Docker') {
-                        sh "docker build -t saranvemireddy/boardgame:latest ."
+                    withMaven(globalMavenSettingsConfig: 'maven_settings_file', jdk: 'java-17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
+                        sh "mvn deploy"
                     }
                 }
             }
         }
-         stage('Docker image scan') {
-            steps {
-               script {
-				sh 'trivy image --format table -o trivy-image.html saranvemireddy/boardgame:latest'
-			   }
-            }
-        }
-        stage('Docker Image Push') {
+        stage('Build and Tag Docker Image') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'dockercreds', toolName: 'Docker') {
-                        sh "docker push saranvemireddy/boardgame:latest"
-                    }
+                   withDockerRegistry(credentialsId: 'dockercreds', toolName: 'docker') {
+                       sh "docker build -t saranvemireddy/boardgame:latest ."
+                   }
+                }
+            }
+        }
+        stage('Docker Image Scan') {
+            steps {
+                script {
+                   sh "trivy image --format table -o trivy-image.html saranvemireddy/boardgame:latest"
+                }
+            }
+        }
+        stage('Push to Docker Hub') {
+            steps {
+                script {
+                   withDockerRegistry(credentialsId: 'dockercreds', toolName: 'docker') {
+                       sh "docker push saranvemireddy/boardgame:latest"
+                   }
                 }
             }
         }
         stage('Deploy to K8') {
             steps {
-               script {
-				withKubeConfig(caCertificate: '', clusterName: 'boardgame.us-east-1.eksctl.io', contextName: '', credentialsId: 'k8creds', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://E1F56D6FDD5DE29EA3E03F13C8064BC1.gr7.us-east-1.eks.amazonaws.com') {
-                   sh "kubectl apply -f deployment-service.yaml"
+                script {
+                   withKubeConfig(caCertificate: '', clusterName: 'boardgame.us-east-1.eksctl.io', contextName: '', credentialsId: 'k8creds', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://16F244B7DC32B759A338058C1D0D50AE.gr7.us-east-1.eks.amazonaws.com') {
+                       sh "kubectl apply -f deployment-service.yaml"
+                   }
                 }
-			   }
             }
         }
-         stage('Verify the Deployment') {
+        stage('Verify the Deployment') {
             steps {
-               script {
-				withKubeConfig(caCertificate: '', clusterName: 'boardgame.us-east-1.eksctl.io', contextName: '', credentialsId: 'k8creds', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://E1F56D6FDD5DE29EA3E03F13C8064BC1.gr7.us-east-1.eks.amazonaws.com') {
-                   sh "kubectl get pods -n webapps"
-                   sh "kubectl get svc -n webapps"
+                script {
+                   withKubeConfig(caCertificate: '', clusterName: 'boardgame.us-east-1.eksctl.io', contextName: '', credentialsId: 'k8creds', namespace: 'webapps', restrictKubeConfigAccess: false, serverUrl: 'https://16F244B7DC32B759A338058C1D0D50AE.gr7.us-east-1.eks.amazonaws.com') {
+                       sh "kubectl get pods -n webapps"
+                       sh "kubectl get svc -n webapps"
+                   }
                 }
-			   }
             }
         }
     }
     post {
-    always {
-        script {
-            def jobName = env.JOB_NAME
+        always {
+            script {
+                def jobName = env.JOB_NAME
             def buildNumber = env.BUILD_NUMBER
             def pipelineStatus = currentBuild.result ?: 'UNKNOWN'
             def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
@@ -143,7 +143,7 @@ pipeline {
                 mimeType: 'text/html',
                 attachmentsPattern: 'trivy-image.html'
             )
+            }
         }
     }
-}
 }
