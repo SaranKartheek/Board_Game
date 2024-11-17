@@ -18,13 +18,11 @@ spec:
         imagePullPolicy: Always
         ports:
         - containerPort: 8080 # The port that the container is running on in the cluster
-
-
-
 ---
 apiVersion: v1 # Kubernetes API version
 kind: Service # Kubernetes resource kind we are creating
-metadata: # Metadata of the resource kind we are creating
+metadata:
+  # Metadata of the resource kind we are creating
   name: boardgame-svc
 spec:
   selector:
@@ -34,3 +32,5 @@ spec:
     port: 80
     targetPort: 8080
   type: LoadBalancer # type of the service.
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:us-east-1:205703054474:certificate/53de88d0-8847-4861-8a20-b2fc579174ce
